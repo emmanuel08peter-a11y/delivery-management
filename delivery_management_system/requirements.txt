@@ -1,0 +1,7 @@
+# Python standard-library modules used:
+# tkinter
+# sqlite3
+# csv
+# os
+
+# No external packages are currently required.
