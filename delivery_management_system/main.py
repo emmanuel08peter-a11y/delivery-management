@@ -1,11 +1,17 @@
 import csv
 import tkinter as tk
+import webbrowser
+from urllib.parse import quote
 from tkinter import ttk, messagebox, filedialog
 
 from database import create_tables, get_connection
 from models import Customer, Rider, Order
 
-# Application colours
+
+# ==================================================
+# APPLICATION SETTINGS
+# ==================================================
+
 PRIMARY_COLOR = "#1976D2"
 BUTTON_TEXT_COLOR = "#FFFFFF"
 BACK_BUTTON_COLOR = "#D3D3D3"
@@ -28,14 +34,15 @@ def money(amount):
 
 
 def open_database():
-    """
-    Use the existing database connection while allowing
-    database records to be accessed by column name.
-    """
+    """Open the database and allow column-name access."""
     connection = get_connection()
     connection.row_factory = __import__("sqlite3").Row
     return connection
 
+
+# ==================================================
+# MAIN APPLICATION
+# ==================================================
 
 class DeliveryApp:
 
@@ -48,7 +55,7 @@ class DeliveryApp:
         self.setup_style()
         self.build_dashboard()
 
-# ==================================================
+    # ==================================================
     # APPLICATION STYLE
     # ==================================================
 
@@ -60,7 +67,6 @@ class DeliveryApp:
         except tk.TclError:
             pass
 
-        # Main application buttons: blue with white text
         style.configure(
             "TButton",
             background=PRIMARY_COLOR,
@@ -81,7 +87,6 @@ class DeliveryApp:
             ]
         )
 
-        # Back buttons: grey with black text
         style.configure(
             "Back.TButton",
             background=BACK_BUTTON_COLOR,
@@ -101,13 +106,11 @@ class DeliveryApp:
             ]
         )
 
-        # Application background
         style.configure(
             "TFrame",
             background=BACKGROUND_COLOR
         )
 
-        # Normal labels
         style.configure(
             "TLabel",
             background=BACKGROUND_COLOR,
@@ -115,7 +118,6 @@ class DeliveryApp:
             font=("Arial", 10)
         )
 
-        # Main headings
         style.configure(
             "Title.TLabel",
             background=BACKGROUND_COLOR,
@@ -123,7 +125,6 @@ class DeliveryApp:
             font=("Arial", 18, "bold")
         )
 
-        # Smaller headings
         style.configure(
             "Heading.TLabel",
             background=BACKGROUND_COLOR,
@@ -131,7 +132,6 @@ class DeliveryApp:
             font=("Arial", 11, "bold")
         )
 
-        # Table appearance
         style.configure(
             "Treeview",
             rowheight=28,
@@ -148,6 +148,7 @@ class DeliveryApp:
             background=[("selected", "#BBDEFB")],
             foreground=[("selected", "#000000")]
         )
+
     # ==================================================
     # MAIN DASHBOARD
     # ==================================================
@@ -223,7 +224,6 @@ class DeliveryApp:
     def refresh_summary(self):
         try:
             with open_database() as connection:
-
                 customers = connection.execute(
                     "SELECT COUNT(*) FROM customers"
                 ).fetchone()[0]
@@ -262,12 +262,64 @@ class DeliveryApp:
                 parent=self.root
             )
 
+    # ==================================================
+    # CREATE WINDOWS
+    # ==================================================
+
     def make_window(self, title, size="950x580"):
         window = tk.Toplevel(self.root)
         window.title(title)
         window.geometry(size)
         window.transient(self.root)
         return window
+
+    # ==================================================
+    # WHATSAPP MESSAGE
+    # ==================================================
+
+    def open_whatsapp(self, phone, message, parent):
+        phone = "".join(
+            character
+            for character in str(phone)
+            if character.isdigit()
+        )
+
+        if phone.startswith("0"):
+            phone = "234" + phone[1:]
+        elif len(phone) == 10 and not phone.startswith("234"):
+            phone = "234" + phone
+        elif not phone.startswith("234"):
+            messagebox.showerror(
+                "Invalid Phone Number",
+                "Please use a valid Nigerian phone number.",
+                parent=parent
+            )
+            return
+
+        if len(phone) != 13:
+            messagebox.showerror(
+                "Invalid Phone Number",
+                "The customer's phone number appears invalid. "
+                "Check the number in Manage Customers.",
+                parent=parent
+            )
+            return
+
+        url = (
+            "https://wa.me/"
+            + phone
+            + "?text="
+            + quote(message)
+        )
+
+        try:
+            webbrowser.open(url)
+        except Exception as error:
+            messagebox.showerror(
+                "WhatsApp Error",
+                f"Could not open WhatsApp:\n{error}",
+                parent=parent
+            )
 
     # ==================================================
     # CUSTOMER MANAGEMENT
@@ -323,12 +375,7 @@ class DeliveryApp:
             width=35
         ).grid(row=1, column=2, padx=4, pady=5)
 
-        columns = (
-            "id",
-            "name",
-            "phone",
-            "address"
-        )
+        columns = ("id", "name", "phone", "address")
 
         tree = ttk.Treeview(
             window,
@@ -418,6 +465,13 @@ class DeliveryApp:
             command=refresh
         ).pack(pady=5)
 
+        ttk.Button(
+            window,
+            text="← Back",
+            style="Back.TButton",
+            command=window.destroy
+        ).pack(anchor="w", padx=12, pady=8)
+
         refresh()
 
     # ==================================================
@@ -462,11 +516,7 @@ class DeliveryApp:
             width=25
         ).grid(row=1, column=1, padx=4, pady=5)
 
-        columns = (
-            "id",
-            "name",
-            "phone"
-        )
+        columns = ("id", "name", "phone")
 
         tree = ttk.Treeview(
             window,
@@ -549,6 +599,13 @@ class DeliveryApp:
             text="Refresh Rider List",
             command=refresh
         ).pack(pady=5)
+
+        ttk.Button(
+            window,
+            text="← Back",
+            style="Back.TButton",
+            command=window.destroy
+        ).pack(anchor="w", padx=12, pady=8)
 
         refresh()
 
@@ -665,19 +722,10 @@ class DeliveryApp:
                 )
 
             except ValueError:
-                total_var.set(
-                    "Total: enter valid amounts"
-                )
+                total_var.set("Total: enter valid amounts")
 
-        amount_var.trace_add(
-            "write",
-            calculate_total
-        )
-
-        fee_var.trace_add(
-            "write",
-            calculate_total
-        )
+        amount_var.trace_add("write", calculate_total)
+        fee_var.trace_add("write", calculate_total)
 
         columns = (
             "id",
@@ -715,11 +763,7 @@ class DeliveryApp:
 
         for column, heading, width in headings:
             tree.heading(column, text=heading)
-            tree.column(
-                column,
-                width=width,
-                anchor="w"
-            )
+            tree.column(column, width=width, anchor="w")
 
         tree.pack(
             fill="both",
@@ -783,9 +827,14 @@ class DeliveryApp:
                         "Register a customer and select them first."
                     )
 
-                customer_id = int(
-                    customer_var.get().split(" - ", 1)[0]
-                )
+                if not pickup_var.get().strip():
+                    raise ValueError("Enter a pickup address.")
+
+                if not delivery_var.get().strip():
+                    raise ValueError("Enter a delivery address.")
+
+                if not description_var.get().strip():
+                    raise ValueError("Enter an item description.")
 
                 amount = float(amount_var.get())
                 fee = float(fee_var.get())
@@ -794,6 +843,10 @@ class DeliveryApp:
                     raise ValueError(
                         "Amounts cannot be negative."
                     )
+
+                customer_id = int(
+                    customer_var.get().split(" - ", 1)[0]
+                )
 
                 order = Order(
                     customer_id,
@@ -839,11 +892,7 @@ class DeliveryApp:
                 )
                 return None
 
-            values = tree.item(
-                selection[0],
-                "values"
-            )
-
+            values = tree.item(selection[0], "values")
             return int(values[0])
 
         def assign_rider():
@@ -872,10 +921,7 @@ class DeliveryApp:
                 )
                 return
 
-            if order_row["status"] in (
-                "Delivered",
-                "Cancelled"
-            ):
+            if order_row["status"] in ("Delivered", "Cancelled"):
                 messagebox.showwarning(
                     "Cannot Assign",
                     "Delivered or cancelled orders cannot be reassigned.",
@@ -898,9 +944,7 @@ class DeliveryApp:
                 for rider in riders
             ]
 
-            rider_var = tk.StringVar(
-                value=options[0]
-            )
+            rider_var = tk.StringVar(value=options[0])
 
             ttk.Combobox(
                 picker,
@@ -959,10 +1003,7 @@ class DeliveryApp:
                     WHERE order_id = ?
                 """, (order_id,)).fetchone()
 
-            if row["status"] in (
-                "Delivered",
-                "Cancelled"
-            ):
+            if row["status"] in ("Delivered", "Cancelled"):
                 messagebox.showwarning(
                     "Cannot Update",
                     "Delivered and cancelled orders are final.",
@@ -980,9 +1021,7 @@ class DeliveryApp:
                 text="Select the new delivery status"
             ).pack(pady=(15, 5))
 
-            status_var = tk.StringVar(
-                value=row["status"]
-            )
+            status_var = tk.StringVar(value=row["status"])
 
             ttk.Combobox(
                 picker,
@@ -996,10 +1035,7 @@ class DeliveryApp:
                 new_status = status_var.get()
 
                 if (
-                    new_status in (
-                        "Assigned",
-                        "Out for Delivery"
-                    )
+                    new_status in ("Assigned", "Out for Delivery")
                     and row["rider_id"] is None
                 ):
                     messagebox.showerror(
@@ -1078,6 +1114,69 @@ class DeliveryApp:
                 parent=window
             )
 
+        def send_whatsapp_message():
+            order_id = get_selected_order_id()
+
+            if order_id is None:
+                return
+
+            with open_database() as connection:
+                record = connection.execute("""
+                    SELECT
+                        c.name AS customer_name,
+                        c.phone AS customer_phone,
+                        o.status,
+                        o.pickup_address,
+                        o.delivery_address
+                    FROM orders o
+                    JOIN customers c
+                        ON c.customer_id = o.customer_id
+                    WHERE o.order_id = ?
+                """, (order_id,)).fetchone()
+
+            if record is None:
+                messagebox.showerror(
+                    "Order Not Found",
+                    "The selected order could not be found.",
+                    parent=window
+                )
+                return
+
+            customer_name = record["customer_name"]
+            status = record["status"]
+            pickup_address = record["pickup_address"]
+            delivery_address = record["delivery_address"]
+
+            if status == "Cancelled":
+                message = (
+                    f"Hello {customer_name}, your order "
+                    f"#{order_id} has been cancelled. "
+                    "Please contact us if you need assistance."
+                )
+
+            elif status == "Delivered":
+                message = (
+                    f"Hello {customer_name}, your order "
+                    f"#{order_id} has been marked as delivered. "
+                    "Thank you for choosing our delivery service!"
+                )
+
+            else:
+                message = (
+                    f"Hello {customer_name}! Your delivery order "
+                    f"#{order_id} is currently '{status}'.\n\n"
+                    f"Pickup address: {pickup_address}\n"
+                    f"Delivery address: {delivery_address}\n\n"
+                    "Please contact us if you need assistance. "
+                    "Thank you for choosing our delivery service!"
+                )
+
+            self.open_whatsapp(
+                record["customer_phone"],
+                message,
+                window
+            )
+
         ttk.Button(
             form,
             text="Create Order",
@@ -1100,7 +1199,8 @@ class DeliveryApp:
             ("Refresh Orders", refresh),
             ("Assign Rider", assign_rider),
             ("Update Status", update_status),
-            ("Cancel Order", cancel_order)
+            ("Cancel Order", cancel_order),
+            ("Send WhatsApp Message", send_whatsapp_message)
         ]
 
         for label, command in actions:
@@ -1112,6 +1212,16 @@ class DeliveryApp:
                 side="left",
                 padx=5
             )
+
+        ttk.Button(
+            action_frame,
+            text="← Back",
+            style="Back.TButton",
+            command=window.destroy
+        ).pack(
+            side="right",
+            padx=5
+        )
 
         load_customers()
         refresh()
@@ -1177,11 +1287,7 @@ class DeliveryApp:
 
         for column, heading, width in headings:
             tree.heading(column, text=heading)
-            tree.column(
-                column,
-                width=width,
-                anchor="w"
-            )
+            tree.column(column, width=width, anchor="w")
 
         tree.pack(
             fill="both",
@@ -1278,9 +1384,7 @@ class DeliveryApp:
                 parent=window,
                 title="Save Orders Report",
                 defaultextension=".csv",
-                filetypes=[
-                    ("CSV Files", "*.csv")
-                ]
+                filetypes=[("CSV Files", "*.csv")]
             )
 
             if not path:
@@ -1366,12 +1470,19 @@ class DeliveryApp:
             command=export_csv
         ).pack(side="left", padx=5)
 
+        ttk.Button(
+            buttons_frame,
+            text="← Back",
+            style="Back.TButton",
+            command=window.destroy
+        ).pack(side="left", padx=5)
+
         refresh_reports()
 
 
-# ======================================================
+# ==================================================
 # START APPLICATION
-# ======================================================
+# ==================================================
 
 def main():
     create_tables()
